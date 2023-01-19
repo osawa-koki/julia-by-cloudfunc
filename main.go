@@ -51,7 +51,21 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		cy = 0.156
 	}
 
-	c := complex(cx, cy)
+	_iter, err := strconv.Atoi(r.FormValue("iter"))
+	var iter uint8
+	if err != nil {
+		iter = 200
+	} else {
+		iter = uint8(_iter)
+	}
+
+	_thre, err := strconv.Atoi(r.FormValue("thre"))
+	var thre uint8
+	if err != nil {
+		thre = 15
+	} else {
+		thre = uint8(_thre)
+	}
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	for py := 0; py < height; py++ {
@@ -59,24 +73,21 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		for px := 0; px < width; px++ {
 			x := float64(px)/float64(width)*(xmax-xmin) + xmin
 			z := complex(x, y)
-			img.Set(px, py, julia(z, c))
+			color := (func() color.Color {
+				var v complex128 = complex(cx, cy)
+				for n := uint8(0); n < iter; n++ {
+					z = z*z + v
+					if cmplx.Abs(z) > 2 {
+						return color.Gray{255 - thre*n}
+					}
+				}
+				return color.Black
+			})();
+
+			img.Set(px, py, color)
 		}
 	}
 
 	w.Header().Set("Content-Type", "image/png")
 	png.Encode(w, img)
-}
-
-func julia(z, c complex128) color.Color {
-	const iterations = 200
-	const contrast = 15
-
-	var v complex128
-	for n := uint8(0); n < iterations; n++ {
-		v = v*v + c
-		if cmplx.Abs(v) > 2 {
-			return color.Gray{255 - contrast*n}
-		}
-	}
-	return color.Black
 }
